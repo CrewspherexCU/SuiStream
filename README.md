@@ -1,52 +1,15 @@
-# Decentralized Prediction Market
+## Project Description:
 
-A decentralized prediction market built on the Sui blockchain using the Move programming language.
+SuiStream is a decentralized subscription platform built on the Sui blockchain, allowing creators to offer paid subscriptions for their content or services. Subscribers can purchase these subscriptions and access the content for a specified duration.
 
-## Introduction
+## Key Features:
 
-The Decentralized Prediction Market is a blockchain-based application that allows users to create and participate in prediction markets. Users can create new markets, place bets on the outcomes of various events or questions, and claim their winnings if their predictions are correct.
+- Subscription Creators: Individuals or organizations can become subscription creators by creating a SubscriptionCreator object on the platform.
+- Subscriptions: Creators can create and offer subscriptions, each with a name, description, price, duration, and content (represented as a vector of bytes).
+- Subscription Purchase: Users can purchase subscriptions by sending the required payment in SUI coins to the creator.
+- Access Control: Subscribers can access the subscription content as long as their subscription is active (before the expiration time).
+- Events: The platform emits events for subscription creation and purchase, enabling transparency and tracking.
 
-## Features
+### This project provides a decentralized and transparent way for creators to offer paid subscriptions for their content or services, while giving subscribers control over their subscriptions and access to the content they've paid for.
 
-- **Market Creation**: Users can create new prediction markets and become the market owners.
-- **Placing Bets**: Users can place bets on the outcome of a prediction market by choosing either "yes" or "no" and providing the corresponding SUI tokens.
-- **Market Resolution**: The platform admin can resolve a prediction market by specifying the outcome (true or false).
-- **Claiming Winnings**: Users can claim their winnings if their bet matches the resolved outcome of the prediction market.
-- **Market Details**: Users can retrieve key information about a prediction market, such as its resolution status, pool balances, and the resolved outcome (if available).
-- **Access Control**: The application includes robust access control mechanisms to ensure secure operations.
-- **Event Logging**: Key events, such as placing bets, resolving markets, and claiming winnings, are logged for transparency.
-  
-# SuiPredict - Decentralized Prediction Market
-
-A decentralized prediction market built on the Sui blockchain using the Move programming language.
-
-## Introduction
-
-SuiPredict is a blockchain-based application that allows users to create and participate in prediction markets. Users can create new markets, place bets on the outcomes of various events or questions, and claim their winnings if their predictions are correct.
-
-## Features
-
-- **Market Creation**: Users can create new prediction markets and become the market owners.
-- **Placing Bets**: Users can place bets on the outcome of a prediction market by choosing either "yes" or "no" and providing the corresponding SUI tokens.
-- **Market Resolution**: The platform admin can resolve a prediction market by specifying the outcome (true or false).
-- **Claiming Winnings**: Users can claim their winnings if their bet matches the resolved outcome of the prediction market.
-- **Market Details**: Users can retrieve key information about a prediction market, such as its resolution status, pool balances, and the resolved outcome (if available).
-- **Access Control**: The application includes robust access control mechanisms to ensure secure operations.
-- **Event Logging**: Key events, such as placing bets, resolving markets, and claiming winnings, are logged for transparency.
-
-## Getting Started
-
-### Prerequisites
-
-- Sui CLI (follow the installation instructions from the official Sui documentation)
-- Move language compiler (install with the Sui CLI)
-
-### Usage
-
-Once deployed, you can interact with the SuiPredict application using the Sui CLI or a Sui-compatible wallet/client. Refer to the project's documentation for detailed instructions on creating markets, placing bets, resolving markets, and claiming winnings.
-
-## Contributing
-
-Contributions to the SuiPredict project are welcome! If you find any issues or have ideas for improvements, please open an issue or submit a pull request.
-
-When contributing, please follow the project's coding conventions and guidelines.
+### The unique aspects of this project include the ability for creators to offer time-limited subscriptions with custom content, and the use of the Sui blockchain to ensure secure and transparent transactions and access control.
