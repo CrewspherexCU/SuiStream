@@ -18,6 +18,8 @@ module suistream::subscription {
     const ERROR_WRONG_CREATOR: u64 = 2;
     const ERROR_SUBSCRIPTION_NOT_FOUND: u64 = 3;
     const ERROR_SUBSCRIPTION_EXPIRED: u64 = 4;
+    const ERROR_SUBSCRIPTION_EXISTS: u64 = 5; // New error for existing subscription name
+    const ERROR_INVALID_DURATION: u64 = 6; // New error for invalid duration
 
     // Struct definitions
     struct SubscriptionCreator has key, store {
@@ -63,6 +65,15 @@ module suistream::subscription {
         expiration: u64
     }
 
+    // Helper functions
+
+    // Get a subscriber object based on subscription name and sender's address
+    fun get_subscriber(subscription: &Subscription, ctx: &mut TxContext): &Subscriber {
+        let subscriber = table::borrow(&subscription.subscribers, sender(ctx));
+        assert!(subscriber != none(), ERROR_SUBSCRIPTION_NOT_FOUND);
+        subscriber.borrow()
+    }
+
     // Public - Entry functions
 
     // Create a new subscription creator
@@ -92,6 +103,8 @@ module suistream::subscription {
     ) {
         assert!(cap.creator_id == object::id(creator), ERROR_INVALID_CAP);
         assert!(creator.creator == sender(ctx), ERROR_WRONG_CREATOR);
+        assert!(table::borrow(&creator.subscriptions, name) == none(), ERROR_SUBSCRIPTION_EXISTS); // Check if subscription name already exists
+        assert!(duration > 0 && duration <= 31536000000, ERROR_INVALID_DURATION); // Limit duration to 1 year
 
         let subscription = Subscription {
             id: object::new(ctx),
@@ -161,12 +174,49 @@ module suistream::subscription {
         assert!(subscription != none(), ERROR_SUBSCRIPTION_NOT_FOUND);
 
         let subscription_obj = subscription.borrow();
-        let subscriber = table::borrow(&subscription_obj.subscribers, sender(ctx));
-        assert!(subscriber != none(), ERROR_SUBSCRIPTION_NOT_FOUND);
-
-        let subscriber_obj = subscriber.borrow();
-        assert!(timestamp_ms(&Clock {}) < subscriber_obj.expiration, ERROR_SUBSCRIPTION_EXPIRED);
+        let subscriber = get_subscriber(subscription_obj, ctx);
+        assert!(timestamp_ms(&Clock {}) < subscriber.expiration, ERROR_SUBSCRIPTION_EXPIRED);
 
         subscription_obj.content
     }
-}
+
+    // Update subscription content
+    public entry fun update_subscription_content(
+        cap: &SubscriptionCreatorCap,
+        creator: &mut SubscriptionCreator,
+        subscription_name: String,
+        new_content: vector<u8>,
+        ctx: &mut TxContext
+    ) {
+        assert!(cap.creator_id == object::id(creator), ERROR_INVALID_CAP);
+        assert!(creator.creator == sender(ctx), ERROR_WRONG_CREATOR);
+
+        let subscription = table::borrow_mut(&mut creator.subscriptions, subscription_name);
+        assert!(subscription != none(), ERROR_SUBSCRIPTION_NOT_FOUND);
+
+        let subscription_mut = subscription.borrow_mut();
+        subscription_mut.content = new_content;
+    }
+
+    // Cancel subscription
+    public entry fun cancel_subscription(
+        cap: &SubscriptionCreatorCap,
+        creator: &mut SubscriptionCreator,
+        subscription_name: String,
+        ctx: &mut TxContext
+    ) {
+        assert!(cap.creator_id == object::id(creator), ERROR_INVALID_CAP);
+        assert!(creator.creator == sender(ctx), ERROR_WRONG_CREATOR);
+
+        table::remove(&mut creator.subscriptions, subscription_name);
+    }
+
+    // Get all subscriptions
+    public fun get_all_subscriptions(creator: &SubscriptionCreator): vector<Subscription> {
+        let subscriptions = vector::empty<Subscription>();
+        let subscriptions_table = table::borrow(&creator.subscriptions);
+        table::for_each(&subscriptions_table, |_, subscription| {
+            vector::push_back(&mut subscriptions, *subscription);
+        });
+        subscriptions
+    }
