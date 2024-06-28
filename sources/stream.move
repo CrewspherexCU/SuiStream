@@ -1,14 +1,14 @@
 module suistream::subscription {
     // Imports
     use sui::transfer;
-    use sui::coin::{Self, Coin};
-    use sui::object::{Self, UID, ID};
-    use sui::tx_context::{TxContext, sender};
-    use sui::table::{Self, Table};
+    use sui::coin::{self, Coin};
+    use sui::object::{self, UID, ID};
+    use sui::tx_context::{self, TxContext, sender};
+    use sui::table::{self, Table};
     use sui::clock::{Clock, timestamp_ms};
     use sui::event;
 
-    use std::option::{Option, none, some};
+    use std::option::{self, Option, none, some};
     use std::string::{String};
     use std::vector;
 
@@ -63,19 +63,25 @@ module suistream::subscription {
         expiration: u64
     }
 
+    struct SubscriptionCancelledEvent has copy, drop {
+        subscriber: address,
+        subscription_id: ID
+    }
+
     // Public - Entry functions
 
     // Create a new subscription creator
     public entry fun create_creator(ctx: &mut TxContext) {
+        let creator_id = object::new(ctx);
         transfer::share_object(SubscriptionCreator {
-            id: object::new(ctx),
+            id: creator_id,
             creator: sender(ctx),
             subscriptions: table::new(ctx)
         });
 
         transfer::transfer(SubscriptionCreatorCap {
             id: object::new(ctx),
-            creator_id: object::uid_to_inner(&object::new(ctx))
+            creator_id: object::uid_to_inner(&creator_id)
         }, sender(ctx));
     }
 
@@ -95,21 +101,21 @@ module suistream::subscription {
 
         let subscription = Subscription {
             id: object::new(ctx),
-            name: name,
-            description: description,
-            price: price,
-            duration: duration,
+            name: name.clone(),
+            description,
+            price,
+            duration,
             subscribers: table::new(ctx),
-            content: content
+            content
         };
 
         table::add(&mut creator.subscriptions, name, subscription);
 
         event::emit(SubscriptionCreatedEvent {
-            name: name,
-            description: description,
-            price: price,
-            duration: duration,
+            name,
+            description,
+            price,
+            duration,
             creator: sender(ctx)
         });
     }
@@ -124,10 +130,10 @@ module suistream::subscription {
     ) {
         assert!(cap.creator_id == object::id(creator), ERROR_INVALID_CAP);
 
-        let subscription = table::borrow_mut(&mut creator.subscriptions, subscription_name);
-        assert!(subscription != none(), ERROR_SUBSCRIPTION_NOT_FOUND);
+        let subscription = table::borrow_mut(&mut creator.subscriptions, subscription_name.clone());
+        assert!(option::is_some(&subscription), ERROR_SUBSCRIPTION_NOT_FOUND);
 
-        let subscription_mut = subscription.borrow_mut();
+        let subscription_mut = option::borrow_mut(&subscription);
         assert!(coin::value(&payment) == subscription_mut.price, ERROR_INSUFFICIENT_FUNDS);
 
         let expiration = timestamp_ms(&Clock {}) + subscription_mut.duration;
@@ -135,7 +141,7 @@ module suistream::subscription {
             id: object::new(ctx),
             subscriber: sender(ctx),
             subscription_id: object::id(subscription_mut),
-            expiration: expiration
+            expiration
         };
 
         table::add(&mut subscription_mut.subscribers, sender(ctx), subscriber);
@@ -144,7 +150,7 @@ module suistream::subscription {
         event::emit(SubscriptionPurchasedEvent {
             subscriber: sender(ctx),
             subscription_id: object::id(subscription_mut),
-            expiration: expiration
+            expiration
         });
     }
 
@@ -157,16 +163,41 @@ module suistream::subscription {
     ): vector<u8> {
         assert!(cap.creator_id == object::id(creator), ERROR_INVALID_CAP);
 
-        let subscription = table::borrow(&creator.subscriptions, subscription_name);
-        assert!(subscription != none(), ERROR_SUBSCRIPTION_NOT_FOUND);
+        let subscription = table::borrow(&creator.subscriptions, subscription_name.clone());
+        assert!(option::is_some(&subscription), ERROR_SUBSCRIPTION_NOT_FOUND);
 
-        let subscription_obj = subscription.borrow();
+        let subscription_obj = option::borrow(&subscription);
         let subscriber = table::borrow(&subscription_obj.subscribers, sender(ctx));
-        assert!(subscriber != none(), ERROR_SUBSCRIPTION_NOT_FOUND);
+        assert!(option::is_some(&subscriber), ERROR_SUBSCRIPTION_NOT_FOUND);
 
-        let subscriber_obj = subscriber.borrow();
+        let subscriber_obj = option::borrow(&subscriber);
         assert!(timestamp_ms(&Clock {}) < subscriber_obj.expiration, ERROR_SUBSCRIPTION_EXPIRED);
 
-        subscription_obj.content
+        subscription_obj.content.clone()
+    }
+
+    // Cancel a subscription
+    public entry fun cancel_subscription(
+        cap: &SubscriptionCreatorCap,
+        creator: &mut SubscriptionCreator,
+        subscription_name: String,
+        ctx: &mut TxContext
+    ) {
+        assert!(cap.creator_id == object::id(creator), ERROR_INVALID_CAP);
+
+        let subscription = table::borrow_mut(&mut creator.subscriptions, subscription_name.clone());
+        assert!(option::is_some(&subscription), ERROR_SUBSCRIPTION_NOT_FOUND);
+
+        let subscription_mut = option::borrow_mut(&subscription);
+        let subscriber = table::remove(&mut subscription_mut.subscribers, sender(ctx));
+        assert!(option::is_some(&subscriber), ERROR_SUBSCRIPTION_NOT_FOUND);
+
+        let subscriber_obj = option::borrow(&subscriber);
+        assert!(timestamp_ms(&Clock {}) < subscriber_obj.expiration, ERROR_SUBSCRIPTION_EXPIRED);
+
+        event::emit(SubscriptionCancelledEvent {
+            subscriber: sender(ctx),
+            subscription_id: object::id(subscription_mut)
+        });
     }
 }
